@@ -8,26 +8,26 @@ using namespace std;
 
 void Convolute(
 	cv::Mat &input,
-	double kernel[3][3],
+	float kernel[3][3],
 	cv::Mat &output,
-  double derivatives[600][600]
+  float derivatives[600][600]
 );
 
 void Magnitude(
-	double derivativesX[600][600],
-	double derivativesY[600][600],
+	float derivativesX[600][600],
+	float derivativesY[600][600],
 	cv::Mat &output
 );
 
 void SegmentByThreshold(
 	cv::Mat &input,
-  double threshold,
+  float threshold,
 	cv::Mat &output
 );
 
 void GradientDirection(
-	double derivativesX[600][600],
-	double derivativesY[600][600],
+	float derivativesX[600][600],
+	float derivativesY[600][600],
 	cv::Mat &output
 );
 
@@ -45,12 +45,12 @@ int main( int argc, char** argv )
   char* imageName = argv[1];
 
   Mat image, gray_image, edgesX, edgesY, magnitude, direction, segment;
-  double derivativesX[600][600];
-  double derivativesY[600][600];
-  double kernelX[3][3] = {{-1, 0, 1},
+  float derivativesX[600][600];
+  float derivativesY[600][600];
+  float kernelX[3][3] = {{-1, 0, 1},
                          {-2, 0, 2},
                          {-1, 0, 1}};
-  double kernelY[3][3] = {{-1, -2, -1},
+  float kernelY[3][3] = {{-1, -2, -1},
                          { 0,  0,  0},
                          { 1,  2,  1}};
   // float hSpace[600][600][150];
@@ -85,7 +85,7 @@ int main( int argc, char** argv )
  return 0;
 }
 
-void Convolute(cv::Mat &input, double kernel[3][3], cv::Mat &output, double derivatives[600][600])
+void Convolute(cv::Mat &input, float kernel[3][3], cv::Mat &output, float derivatives[600][600])
 {
 	output.create(input.size(), input.type());
 	int kernelSize = 3;
@@ -98,13 +98,13 @@ void Convolute(cv::Mat &input, double kernel[3][3], cv::Mat &output, double deri
 		kernelRadiusX, kernelRadiusX, kernelRadiusY, kernelRadiusY,
 		cv::BORDER_REPLICATE );
 
-  double min = 10000, max = 10000;
+  float min = 10000, max = 10000;
 
 	for ( int i = 0; i < input.rows; i++ )
 	{
 		for( int j = 0; j < input.cols; j++ )
 		{
-			double sum = 0.0;
+			float sum = 0.0;
 			for( int m = -kernelRadiusX; m <= kernelRadiusX; m++ )
 			{
 				for( int n = -kernelRadiusY; n <= kernelRadiusY; n++ )
@@ -116,7 +116,7 @@ void Convolute(cv::Mat &input, double kernel[3][3], cv::Mat &output, double deri
 
 					// get the values from the padded image and the kernel
 					int imageval = ( int ) paddedInput.at<uchar>( imagex, imagey );
-					double kernalval = kernel[kernelx][kernely];
+					float kernalval = kernel[kernelx][kernely];
 					sum += imageval * kernalval;
 				}
 			}
@@ -131,33 +131,33 @@ void Convolute(cv::Mat &input, double kernel[3][3], cv::Mat &output, double deri
       }
 		}
 	}
-  double oldrange = max - min;
-  double newmin=0;
-  double newmax=255;
-  double newrange = newmax - newmin;
+  float oldrange = max - min;
+  float newmin=0;
+  float newmax=255;
+  float newrange = newmax - newmin;
 
   for( int i = 0; i < output.rows; i++ )
 	{
 		for( int j = 0; j < output.cols; j++ )
     {
-      double scale = (derivatives[i][j] - min) / oldrange;
+      float scale = (derivatives[i][j] - min) / oldrange;
       output.at<uchar>(i, j) = (newrange * scale) + newmin;
     }
   }
 }
  
-void Magnitude(double derivativesX[600][600], double derivativesY[600][600], cv::Mat &output)
+void Magnitude(float derivativesX[600][600], float derivativesY[600][600], cv::Mat &output)
 {
-  double min = 10000, max = -10000;
-  double magnitudes[550][550];
+  float min = 10000, max = -10000;
+  float magnitudes[550][550];
 
 	for(int i = 0; i < output.rows; i++)
 	{
 		for(int j = 0; j < output.cols; j++)
 		{
-			double x_2 = derivativesX[i][j] * derivativesX[i][j];
-			double y_2 = derivativesY[i][j] * derivativesY[i][j];
-			double magnitude = sqrt(x_2 + y_2);
+			float x_2 = derivativesX[i][j] * derivativesX[i][j];
+			float y_2 = derivativesY[i][j] * derivativesY[i][j];
+			float magnitude = sqrt(x_2 + y_2);
       magnitudes[i][j] = magnitude;
 
 			if(magnitude > max)
@@ -170,22 +170,22 @@ void Magnitude(double derivativesX[600][600], double derivativesY[600][600], cv:
       } 
 		}
 	}
-  double oldrange = max - min;
-  double newmin=0;
-  double newmax=255;
-  double newrange = newmax - newmin;
+  float oldrange = max - min;
+  float newmin=0;
+  float newmax=255;
+  float newrange = newmax - newmin;
 
   for( int i = 0; i < output.rows; i++ )
 	{
 		for( int j = 0; j < output.cols; j++ )
     {
-      double scale = (magnitudes[i][j] - min) / oldrange;
+      float scale = (magnitudes[i][j] - min) / oldrange;
       output.at<uchar>(i, j) = (newrange * scale) + newmin;
     }
   }
 }
 
-void SegmentByThreshold(Mat &input, double threshold, Mat &output) {
+void SegmentByThreshold(Mat &input, float threshold, Mat &output) {
   output.create(input.size(), input.type());
 	for (int i = 0; i < input.rows; i++)
   {
@@ -200,10 +200,10 @@ void SegmentByThreshold(Mat &input, double threshold, Mat &output) {
 	}
 }
 
-void GradientDirection(double derivativesX[600][600], double derivativesY[600][600], Mat &output)
+void GradientDirection(float derivativesX[600][600], float derivativesY[600][600], Mat &output)
 {
-  double min = 999999, max = -999999, direction;
-  double directions[550][550];
+  float min = 999999, max = -999999, direction;
+  float directions[550][550];
   for( int i = 0; i < output.rows; i++ )
 	{
 		for( int j = 0; j < output.cols; j++ )
@@ -215,16 +215,16 @@ void GradientDirection(double derivativesX[600][600], double derivativesY[600][6
       if(direction < min) min = direction;
 		}
 	}
-  double oldrange = max - min;
-  double newmin=0;
-  double newmax=255;
-  double newrange = newmax - newmin;
+  float oldrange = max - min;
+  float newmin=0;
+  float newmax=255;
+  float newrange = newmax - newmin;
 
   for( int i = 0; i < output.rows; i++ )
 	{
 		for( int j = 0; j < output.cols; j++ )
     {
-      double scale = (directions[i][j] - min) / oldrange;
+      float scale = (directions[i][j] - min) / oldrange;
       output.at<uchar>(i, j) = (newrange * scale) + newmin;
     }
   }
