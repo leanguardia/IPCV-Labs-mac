@@ -5,7 +5,7 @@
 using namespace cv;
 using namespace std;
 
-ushort hSpace[750][625][200];
+ushort hSpace[750][625][270];
 
 void Convolute(
   cv::Mat &input,
@@ -77,7 +77,7 @@ int main( int argc, char** argv ) {
   GradientDirection(derivativesX, derivativesY, direction);
   imwrite("direction.jpg", direction);
 
-  ushort threshold = 225, minRad = 25, maxRad = 150;
+  ushort threshold = 225, minRad = 20, maxRad = 145;
   circles = HoughSpaceCircles(segment, direction, threshold, minRad, maxRad);
   imwrite("circles.jpg", circles);
 
@@ -205,8 +205,8 @@ Mat HoughSpaceCircles(Mat magnitude, Mat direction, ushort threshold, ushort min
         for(int r = 0; r < possibleRadious; r++) {
           radius = minRadius + r;
           directionInRadians = (float)direction.at<uchar>(i, j) * 0.0243;
-          x0 = j + radius * cos(directionInRadians);
-          y0 = i + radius * sin(directionInRadians);
+          x0 = j - radius * cos(directionInRadians);
+          y0 = i - radius * sin(directionInRadians);
           // cout << "direction: " << direction.at<float>(i, j) << endl;
           // cout << "direction in Rads: " << directionInRadians << " - r: " << r << " radius: " << radius << endl;
           // cout << "X0 = " << j << " + " << radius << " * cos(" << directionInRadians << ") = "<< x0 << endl;
@@ -225,8 +225,8 @@ Mat HoughSpaceCircles(Mat magnitude, Mat direction, ushort threshold, ushort min
 
   hSpaceWidth = -minX + maxX;
   hSpaceHeight = -minY + maxY;
-  cout  << "width: " << hSpaceWidth << endl;
-  cout  << "height:  " << hSpaceHeight << endl;
+  cout  << "hSpae width: " << hSpaceWidth << endl;
+  cout  << "hSpace height: " << hSpaceHeight << endl;
   houghSpace2D.create(hSpaceHeight, hSpaceWidth, magnitude.type());
   for(int i = 0; i < houghSpace2D.rows; i++) {
     for(int j = 0; j < houghSpace2D.cols; j++) {
@@ -234,7 +234,7 @@ Mat HoughSpaceCircles(Mat magnitude, Mat direction, ushort threshold, ushort min
       for(int r = 0; r < possibleRadious; r++) {
         votes += hSpace[i][j][r];
       }
-      houghSpace2D.at<uchar>(i, j) = votes * 5;
+      houghSpace2D.at<uchar>(i, j) = votes * 2;
     }
   }
   return  houghSpace2D;
