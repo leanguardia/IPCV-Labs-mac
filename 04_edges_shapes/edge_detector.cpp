@@ -5,6 +5,8 @@
 using namespace cv;
 using namespace std;
 
+uint hSpace[600][600][250];
+
 void Convolute(
   cv::Mat &input,
   float kernel[3][3],
@@ -12,7 +14,7 @@ void Convolute(
   float derivatives[600][600]
 );
 
-void Magnitude(
+void GradientMagnitude(
   float derivativesX[600][600],
   float derivativesY[600][600],
   cv::Mat &output
@@ -30,18 +32,18 @@ void GradientDirection(
   cv::Mat &output
 );
 
-void HoughSpace(
+Mat HoughSpaceCircles(
   Mat magnitude,
   Mat direction,
-  int minRad,
-  int maxRad,
-  float hSpace[600][600][150]
+  ushort threshold,
+  ushort minRad,
+  ushort maxRad
 );
 
 int main( int argc, char** argv ) {
   char* imageName = argv[1];
 
-  Mat image, gray_image, edgesX, edgesY, magnitude, direction, segment;
+  Mat image, gray_image, edgesX, edgesY, magnitude, direction, segment, circles;
   float derivativesX[600][600];
   float derivativesY[600][600];
   float kernelX[3][3] = {{-1, 0, 1},
@@ -50,34 +52,33 @@ int main( int argc, char** argv ) {
   float kernelY[3][3] = {{-1, -2, -1},
                          { 0,  0,  0},
                          { 1,  2,  1}};
-  // float hSpace[600][600][150];
 
-  image = imread(imageName, 1 );
-  if( argc != 2 || !image.data ) {
-    printf( " No image data \n " );
+  image = imread(imageName, 1);
+  if(argc != 2 || !image.data) {
+    printf(" No image data \n ");
     return -1;
   }
   cvtColor(image, gray_image, COLOR_BGR2GRAY);
 
   Convolute(gray_image, kernelX, edgesX, derivativesX);
-  imwrite( "edgesX.jpg", edgesX );
+  imwrite("edgesX.jpg", edgesX);
 
   Convolute(gray_image, kernelY, edgesY, derivativesY);
-  imwrite( "edgesY.jpg", edgesY );
+  imwrite("edgesY.jpg", edgesY);
 
   magnitude.create(edgesX.size(), edgesX.type());
-  Magnitude(derivativesX, derivativesY, magnitude);
-  imwrite( "magnitude.jpg", magnitude );
+  GradientMagnitude(derivativesX, derivativesY, magnitude);
+  imwrite("magnitude.jpg", magnitude);
 
-  SegmentByThreshold(magnitude, 80.0, segment);
-  imwrite( "segment.jpg", segment );
+  SegmentByThreshold(magnitude, 70.0, segment);
+  imwrite("segment.jpg", segment);
 
   direction.create(edgesX.size(), edgesX.type());
   GradientDirection(derivativesX, derivativesY, direction);
-  imwrite( "direction.jpg", direction );
+  imwrite("direction.jpg", direction);
 
-  // int minRad = 10, maxRad = 270;
-  // HoughSpace(magnitude, direction, minRad, maxRad, hSpace);
+  ushort threshold = 225, minRad = 25, maxRad = 150;
+  circles = HoughSpaceCircles(segment, direction, threshold, minRad, maxRad);
 
  return 0;
 }
@@ -88,8 +89,8 @@ void normalize(float data[600][600], float max, float min, Mat &output) {
   float newMax = 255;
   float newRange = newMax - newMin;
 
-  for( int i = 0; i < output.rows; i++ ) {
-    for( int j = 0; j < output.cols; j++ ) {
+  for( int i = 0; i < output.rows; i++) {
+    for( int j = 0; j < output.cols; j++) {
       float scale = (data[i][j] - min) / oldRange;
       output.at<uchar>(i, j) = (newRange * scale) + newMin;
     }
@@ -110,11 +111,11 @@ void Convolute(Mat &input, float kernel[3][3], Mat &output, float derivatives[60
 
   float min = 10000, max = 10000;
 
-  for ( int i = 0; i < input.rows; i++ ) {
-    for( int j = 0; j < input.cols; j++ ) {
+  for ( int i = 0; i < input.rows; i++) {
+    for( int j = 0; j < input.cols; j++) {
       float sum = 0.0;
-      for( int m = -kernelRadiusX; m <= kernelRadiusX; m++ ) {
-        for( int n = -kernelRadiusY; n <= kernelRadiusY; n++ ) {
+      for( int m = -kernelRadiusX; m <= kernelRadiusX; m++) {
+        for( int n = -kernelRadiusY; n <= kernelRadiusY; n++) {
           int imagex = i + m + kernelRadiusX;
           int imagey = j + n + kernelRadiusY;
           int kernelx = m + kernelRadiusX;
@@ -134,7 +135,7 @@ void Convolute(Mat &input, float kernel[3][3], Mat &output, float derivatives[60
   normalize(derivatives, max, min, output);
 }
  
-void Magnitude(float derivativesX[600][600], float derivativesY[600][600], cv::Mat &output) {
+void GradientMagnitude(float derivativesX[600][600], float derivativesY[600][600], cv::Mat &output) {
   float min = 10000, max = -10000;
   float magnitudes[600][600];
 
@@ -167,11 +168,9 @@ void SegmentByThreshold(Mat &input, float threshold, Mat &output) {
 void GradientDirection(float derivativesX[600][600], float derivativesY[600][600], Mat &output) {
   float min = 999999, max = -999999, direction;
   float directions[600][600];
-  for( int i = 0; i < output.rows; i++ )
-  {
-    for( int j = 0; j < output.cols; j++ )
-    {
-      direction = atan2(derivativesY[i][j] , derivativesX[i][j]);
+  for(int i = 0; i < output.rows; i++) {
+    for(int j = 0; j < output.cols; j++) {
+      direction = atan2(derivativesY[i][j], derivativesX[i][j]);
       direction = direction * 180.0 / 3.14159265;
       directions[i][j] = direction;
       if(direction > max) max = direction;
@@ -181,7 +180,34 @@ void GradientDirection(float derivativesX[600][600], float derivativesY[600][600
   normalize(directions, max, min, output);
 }
 
-// void HoughSpace(Mat magnitude, Mat direction, int minRadius, int maxRaiud, float hSpace[600][600][150])
-// {
-//   //
-// }
+Mat HoughSpaceCircles(Mat magnitude, Mat direction, ushort threshold, ushort minRadius, ushort maxRadius) {
+  ushort possibleRadious = maxRadius - minRadius, x0, y0;
+  Mat houghSpace2D;
+  houghSpace2D.create(magnitude.size(), magnitude.type());
+  
+  cout << "possibleRadious: " << possibleRadious << endl;
+  for(int i = 0; i < magnitude.rows; i++) {
+    for(int j = 0; j < magnitude.cols; j++) {
+      for(int k = 0; k < possibleRadious; k++) {
+        hSpace[i][j][k] = 0;
+      }
+    }
+  }
+  cout << "hough Space initialized" << endl;
+  // for(int i = 1; i < magnitude.rows; i++) {
+  //   for(int j = 1; j < magnitude.cols; j++) {
+  //     if(magnitude.at<uchar>(i, j) > threshold) {
+  //       cout << "for i: " << i << " j: " << j << endl;
+  //       for(int r = 0; r < possibleRadious; r++) {
+  //         int radius = minRadius + r;
+  //         x0 = j + radius * cos(direction.at<uchar>(i, j));
+  //         y0 = i + radius * sin(direction.at<uchar>(i, j));
+  //         cout << "direction: " << direction.at<uchar>(i, j) " - r: " << r << " radius: " << radius << endl;
+  //         cout << "(" << x0 << ", " << y0 << ")"<< endl;
+  //         hSpace[x0][y0][r]++;
+  //       }
+  //     }
+  //   }
+  // }
+  return  houghSpace2D;
+}
