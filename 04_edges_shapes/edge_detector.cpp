@@ -5,7 +5,7 @@
 using namespace cv;
 using namespace std;
 
-uint hSpace[600][600][250];
+ushort hSpace[750][625][200];
 
 void Convolute(
   cv::Mat &input,
@@ -79,6 +79,7 @@ int main( int argc, char** argv ) {
 
   ushort threshold = 225, minRad = 25, maxRad = 150;
   circles = HoughSpaceCircles(segment, direction, threshold, minRad, maxRad);
+  imwrite("circles.jpg", circles);
 
  return 0;
 }
@@ -134,7 +135,7 @@ void Convolute(Mat &input, float kernel[3][3], Mat &output, float derivatives[60
   }
   normalize(derivatives, max, min, output);
 }
- 
+
 void GradientMagnitude(float derivativesX[600][600], float derivativesY[600][600], cv::Mat &output) {
   float min = 10000, max = -10000;
   float magnitudes[600][600];
@@ -146,7 +147,7 @@ void GradientMagnitude(float derivativesX[600][600], float derivativesY[600][600
       float magnitude = sqrt(x_2 + y_2);
       magnitudes[i][j] = magnitude;
       if(magnitude > max) max = magnitude;
-      if(magnitude < min) min = magnitude; 
+      if(magnitude < min) min = magnitude;
     }
   }
   normalize(magnitudes, max, min, output);
@@ -181,10 +182,12 @@ void GradientDirection(float derivativesX[600][600], float derivativesY[600][600
 }
 
 Mat HoughSpaceCircles(Mat magnitude, Mat direction, ushort threshold, ushort minRadius, ushort maxRadius) {
-  ushort possibleRadious = maxRadius - minRadius, x0, y0;
+  ushort possibleRadious = maxRadius - minRadius, radius, hSpaceWidth, hSpaceHeight;
+  int x0, y0, votes;
+  int minX = 9999999, maxX = -9999999, minY = 99999999, maxY = -99999999;
+  float directionInRadians;
   Mat houghSpace2D;
-  houghSpace2D.create(magnitude.size(), magnitude.type());
-  
+
   cout << "possibleRadious: " << possibleRadious << endl;
   for(int i = 0; i < magnitude.rows; i++) {
     for(int j = 0; j < magnitude.cols; j++) {
@@ -194,20 +197,45 @@ Mat HoughSpaceCircles(Mat magnitude, Mat direction, ushort threshold, ushort min
     }
   }
   cout << "hough Space initialized" << endl;
-  // for(int i = 1; i < magnitude.rows; i++) {
-  //   for(int j = 1; j < magnitude.cols; j++) {
-  //     if(magnitude.at<uchar>(i, j) > threshold) {
-  //       cout << "for i: " << i << " j: " << j << endl;
-  //       for(int r = 0; r < possibleRadious; r++) {
-  //         int radius = minRadius + r;
-  //         x0 = j + radius * cos(direction.at<uchar>(i, j));
-  //         y0 = i + radius * sin(direction.at<uchar>(i, j));
-  //         cout << "direction: " << direction.at<uchar>(i, j) " - r: " << r << " radius: " << radius << endl;
-  //         cout << "(" << x0 << ", " << y0 << ")"<< endl;
-  //         hSpace[x0][y0][r]++;
-  //       }
-  //     }
-  //   }
-  // }
+
+  for(int i = 0; i < direction.rows; i++) {
+    for(int j = 0; j < direction.cols; j++) {
+      if(magnitude.at<uchar>(i, j) > threshold) {
+        // cout << "for i: " << i << " j: " << j << endl;
+        for(int r = 0; r < possibleRadious; r++) {
+          radius = minRadius + r;
+          directionInRadians = (float)direction.at<uchar>(i, j) * 0.0243;
+          x0 = j + radius * cos(directionInRadians);
+          y0 = i + radius * sin(directionInRadians);
+          // cout << "direction: " << direction.at<float>(i, j) << endl;
+          // cout << "direction in Rads: " << directionInRadians << " - r: " << r << " radius: " << radius << endl;
+          // cout << "X0 = " << j << " + " << radius << " * cos(" << directionInRadians << ") = "<< x0 << endl;
+          // cout << "Y0 = " << i << " + " << radius << " * sin(" << directionInRadians << ") = "<< y0 << endl;
+          if(x0 > maxX) maxX = x0;
+          if(x0 < minX) minX = x0;
+          if(y0 > maxY) maxY = y0;
+          if(y0 < minY) minY = y0;
+          // cout << x0 + 131<< ", " << y0 + 138 << endl;
+          hSpace[x0 + 131][y0 + 138][r]++;
+        }
+      }
+    }
+  }
+  cout << "Created Hough Space" << endl;
+
+  hSpaceWidth = -minX + maxX;
+  hSpaceHeight = -minY + maxY;
+  cout  << "width: " << hSpaceWidth << endl;
+  cout  << "height:  " << hSpaceHeight << endl;
+  houghSpace2D.create(hSpaceHeight, hSpaceWidth, magnitude.type());
+  for(int i = 0; i < houghSpace2D.rows; i++) {
+    for(int j = 0; j < houghSpace2D.cols; j++) {
+      votes = 0;
+      for(int r = 0; r < possibleRadious; r++) {
+        votes += hSpace[i][j][r];
+      }
+      houghSpace2D.at<uchar>(i, j) = votes * 5;
+    }
+  }
   return  houghSpace2D;
 }
